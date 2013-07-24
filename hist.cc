@@ -328,7 +328,7 @@ int  main(int argc, char* argv[]) {
 
 	    
   } //end of event loop
-  
+  //
   // Statistical summary
   if(debug) pythia.stat(); 
   

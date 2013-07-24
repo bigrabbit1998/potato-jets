@@ -98,10 +98,10 @@ Pythia8::Vec4 MyTopEvent::LeptonicW(vector<Pythia8::Particle> &nutrinos, vector<
  
   total = operator+(mu,el);
   // total=operator+(total,tau);
-  double pwE = 
+  // double pwE = 
   
-  double pwx = total.px() + nu.px();
-  double pwy = total.py() + nu.py();
+    double pwx = total.px() + nu.px(); // nupx = MET_x
+  double pwy = total.py() + nu.py();//nupy = MET_y
  
   double pwz = fabs((pwE^2 - pwx^2 - pwy^2 - (80.4)^2)^(1/2));
 
