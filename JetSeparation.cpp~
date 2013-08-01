@@ -1,0 +1,132 @@
+#include "fjClustering.h"
+#include "MyEvent.h"
+#include "JetSeparation.h"
+
+//change namespace, later
+using namespace std;
+
+void Jets::SetParam(double DeltaR , double etamax, double ptmin) {
+  //values set
+  m_DeltaR=DeltaR; 
+  m_etamax = etamax;
+  m_ptmin = ptmin;
+
+  printf(" deltaR = %lf, max eta = %lf, min pt = %lf",m_DeltaR, m_etamax, m_ptmin);
+  cout<<"\n\n"<<endl;
+  
+ }
+
+//default constructor
+Jets::Jets(){
+  cout<<"constructor"<<endl;
+}
+
+//this will match jets to partons (maybe try partons to jets)
+//returns a vector of matched jets
+vector<fastjet::PseudoJet> Jets::MatchPartonsToJets(const vector<Pythia8::Particle> &particles, const  vector<fastjet::PseudoJet> &input_jets ) {
+
+  vector<fastjet::PseudoJet> matchedjets;
+  for( size_t ijet=0 ; ijet< input_jets.size() ; ++ijet) {
+
+    const fastjet::PseudoJet &nth_jet = input_jets[ijet];
+    for( size_t ith_p(0) ; ith_p < particles.size(); ++ith_p ){
+      
+      const  Pythia8::Particle &pe = particles[ith_p];
+      TLorentzVector p,j;
+      p.SetPtEtaPhiM(pe.pT(),pe.eta(),pe.phi(),pe.m());
+      j.SetPtEtaPhiM(nth_jet.pt(),nth_jet.eta(),nth_jet.phi(),nth_jet.m());
+      
+      //this causes repeats.fix this later!
+      if ( p.Pt() > m_ptmin && fabs(p.Eta()) < m_etamax && p.DeltaR(j) < m_DeltaR )
+	// if (p.Pt() > m_ptmin && p.DeltaR(j) < m_DeltaR )
+	matchedjets.push_back(nth_jet); 
+      //set newjets=oldjets\matched jets
+      
+    }
+  }
+  //  std::sort(matchedjets.begin(), matchedjets.end(), ComparePt);
+  return matchedjets;
+}
+
+//vector<fastjet::PseudoJet> Jets::GhostMatching(const vector<Pythia8::Particle>  &input_particles, const vector<fastjet::PseudoJet> input_jets) {
+//setup ghost matching
+//}
+
+//send in clustered jets and particles that should be removed from jets
+vector<fastjet::PseudoJet> Jets::OverlapRemoval(const vector<Pythia8::Particle> &input_particles, const vector<fastjet::PseudoJet> &removal_jets){
+
+  vector< fastjet::PseudoJet> jets;
+
+  //overlap removal
+  for (size_t ijet=0; ijet < removal_jets.size();++ijet) {
+    
+    const fastjet:: PseudoJet &jet = removal_jets[ijet];
+    bool isCloseToParticle = false;
+    
+    // check if current jet is close particle
+    // if so, "remove" it!
+    for (size_t i=0;i<input_particles.size();++i) {
+      TLorentzVector p,j;
+      const Pythia8::Particle &pe = input_particles[i];
+      p.SetPtEtaPhiM(pe.pT(),pe.eta(),pe.phi(),pe.m());
+      j.SetPtEtaPhiM(jet.pt(),jet.eta(),jet.phi(),jet.m());
+      
+      //how many leptons should there be in the container?
+      if ( p.Pt()>m_ptmin && fabs(p.Eta()) < m_etamax && p.DeltaR(j) < m_DeltaR )
+	isCloseToParticle = true;
+    }
+    
+    if (isCloseToParticle) continue; 
+    jets.push_back(jet);
+  }
+
+  return jets;
+}
+
+/*this gets leading and subleading jets
+void Jets::GetLeadingJets(pjets testjets){ 
+  pjets temp, final;
+  for(size_t n(0); n < (int(testjets.size()) - 1); ++n){
+    fastjet::PseudoJet &test = testjets[n];
+   
+    for(size_t m(0); m < testjets.size(); ++m ){
+      fastjet::PseudoJet &test2 = testjets[m];
+      if(ComparePt( test, test2))
+	
+    }
+  }
+}
+*/
+
+bool Jets::ComparePt(fastjet::PseudoJet a, fastjet::PseudoJet b) {
+  return a.pt() > b.pt();
+}
+ 
+bool Jets::ChiSquare(TLorentzVector parton, TLorentzVector jet ){
+  //compare angles, energies,pt, and delta R
+}
+
+void Jets::PrintMatches() {
+  std::cout <<"hello"<<std::endl;
+}
+
+  
+vector<fastjet::PseudoJet> Jets::RemoveSubset( vector<fastjet::PseudoJet>& subset, vector<fastjet::PseudoJet> &set) {
+
+  vector< fastjet::PseudoJet> newset;
+  for( size_t n(0); n < set.size(); ++n) {
+    const fastjet::PseudoJet  &s = set[n];
+
+    for(size_t m(0); m < subset.size(); ++m){
+      const fastjet::PseudoJet &ss= subset[m];
+      
+      if(fabs( s.pt()- ss.pt())< .2 && fabs(s.eta()-ss.eta())< .2  && fabs(s.phi()-ss.phi()) < .2
+	 && fabs(s.m()-ss.m())< .2 ) break;
+      else if(m==(int(subset.size())-1))
+	      newset.push_back(s);
+      
+    }
+  }
+  return newset;
+}
+

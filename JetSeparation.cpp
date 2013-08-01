@@ -14,8 +14,9 @@ void JetMatching::SetParam(double DeltaR , double etamax, double ptmin) {
   m_etamax = etamax;
   m_ptmin = ptmin;
 
-  printf(" deltaR = %lf, max eta = %lf, min pt = %lf",m_DeltaR, m_etamax, m_ptmin);  
+  printf(" deltaR = %4.2f, max eta = %4.2f, min pt = %4.2f",m_DeltaR, m_etamax, m_ptmin);  
  }
+
 
 //does matching
 vector<fastjet::PseudoJet> JetMatching::Match(const vector<Pythia8::Particle> &particles, const  vector<fastjet::PseudoJet> &input_jets ) {
@@ -32,17 +33,19 @@ vector<fastjet::PseudoJet> JetMatching::Match(const vector<Pythia8::Particle> &p
       p.SetPtEtaPhiM(pe.pT(),pe.eta(),pe.phi(),pe.m());
       j.SetPtEtaPhiM(nth_jet.pt(),nth_jet.eta(),nth_jet.phi(),nth_jet.m());
       
-      if( p.Pt() > m_ptmin && fabs(p.Eta()) < m_etamax && p.DeltaR(j) < m_DeltaR )
-	match_j=true;
+      if( p.Pt() > m_ptmin && fabs(p.Eta()) < m_etamax && p.DeltaR(j) < m_DeltaR ){
+	match_j=true;	
+      }
     }
     
     if(match_j)
-      matchedjets.push_back(nth_jet);  
+       matchedjets.push_back(nth_jet);  
   }
 
-  //  std::sort(matchedjets.begin(), matchedjets.end(), ComparePt);
+ 
   return matchedjets;
 }
+
 
 //send in clustered jets and particles that should be removed from jets
 vector<fastjet::PseudoJet> JetMatching::OverlapRemoval(const vector<Pythia8::Particle> &input_particles, const vector<fastjet::PseudoJet> &removal_jets){
@@ -72,19 +75,22 @@ vector<fastjet::PseudoJet> JetMatching::OverlapRemoval(const vector<Pythia8::Par
   return jets;
 }
 
-/*this gets leading and subleading jets
-void Jets::GetLeadingJets(pjets testjets){ 
-  pjets temp, final;
-  for(size_t n(0); n < (int(testjets.size()) - 1); ++n){
-    fastjet::PseudoJet &test = testjets[n];
+//pt, eta cuts!
+vector<fastjet::PseudoJet> TrimJets(double ptcuts, double etacuts, vector<fastjet::PseudoJet> &trimmedjets ) {
+   vector< fastjet::PseudoJet> returnj;
+
+  for (size_t ijet=0; ijet < trimmedjets.size();++ijet) {
+    const fastjet:: PseudoJet &jet = trimmedjets[ijet];
+    bool notremoved = false;    
+    if( jet.pt() > ptcuts && fabs(jet.eta()) < etacuts )
+      notremoved = true;
    
-    for(size_t m(0); m < testjets.size(); ++m ){
-      fastjet::PseudoJet &test2 = testjets[m];
-      if(ComparePt( test, test2))
-    }
+    if (notremoved) 
+      returnj.push_back(jet);
   }
-}
-*/
+
+  return returnj;
+};
 
 bool JetMatching::ComparePt(fastjet::PseudoJet a, fastjet::PseudoJet b) {
   return a.pt() > b.pt();
@@ -107,8 +113,7 @@ vector<fastjet::PseudoJet> JetMatching::RemoveSubset(const vector<fastjet::Pseud
     for(size_t m(0); m < subset.size(); ++m){
       const fastjet::PseudoJet &ss= subset[m];
       
-      if(fabs( s.pt()- ss.pt())< .1 && fabs(s.eta()-ss.eta())< .1  && fabs(s.phi()-ss.phi()) < .1
-	 && fabs(s.m()-ss.m())< .2 ) break;
+      if(operator==(s,ss)) break;
       else if(m==(int(subset.size())-1))
 	      newset.push_back(s);
     }

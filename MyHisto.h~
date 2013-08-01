@@ -1,0 +1,37 @@
+#ifndef MYHISTO__HH
+#define MYHISTO__HH 1
+
+#include <string>
+#include "fastjet/PseudoJet.hh"
+#include "fastjet/ClusterSequence.hh"
+#include<iostream> // needed for io
+#include<sstream>  // needed for internal io
+#include<vector>
+#include <cstdio>
+#include "Pythia.h"
+
+class MyHisto {
+
+ public:
+  fjClustering();
+  fjClustering(fastjet::JetAlgorithm, double, fastjet::RecombinationScheme, fastjet::Strategy);
+  ~fjClustering();
+  
+  void SaveHist();
+  void WriteToHist();
+ 
+ private:
+  
+  std::vector<fastjet::PseudoJet> inputJets;
+  std::vector<fastjet::PseudoJet> outputJets;
+
+
+ 
+
+}
+#endif
+
+
+
+
+

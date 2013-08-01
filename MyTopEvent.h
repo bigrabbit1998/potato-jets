@@ -18,23 +18,45 @@ class MyTopEvent/*:: public TNamed*/
   //constructor
   MyTopEvent();
 
-
-  /* Use parton information to determine decay channel
-  bool AllHadronic() { return (m_t.hadronicDecay() && m_tbar.hadronicDecay()); }
-  bool DiLeponic() { return (m_t.leptonicDecay()&&m_tbar.leptonicDecay()); }
-  bool SemiLeptonic() { return !AllHadroic() && !DiLeptonic(); }
+  double TopMatch( vector<Pythia8::Particle> & , fastjet::PseudoJet& );
+  
+  /*
+    Use parton information to determine decay channel
+    bool AllHadronic() { return (m_t.hadronicDecay() && m_tbar.hadronicDecay()); }
+    bool DiLeponic() { return (m_t.leptonicDecay()&&m_tbar.leptonicDecay()); }
+    bool SemiLeptonic() { return !AllHadroic() && !DiLeptonic(); }
   */
 
-  void ClearJets();
-  double Recon_Mass1(const mypseudojets &, const mypseudojets&, Pythia8::Vec4 &, Pythia8::Particle & );
-  int BestCombination(const mypseudojets &, Pythia8::Vec4 & );
-  double ReturnWmass();
-  Pythia8::Vec4 LeptonicW(myparticlejets &, myparticlejets &, myparticlejets &, myparticlejets & );
+ 
+  fastjet::PseudoJet Recon_Mass_Method_1(const mypseudojets &, const mypseudojets&, 
+					 vector<Pythia8::Particle> & nu, vector<Pythia8::Particle> & mu, vector<Pythia8::Particle> & els );
+
+  fastjet::PseudoJet Recon_Mass_Method_2(const mypseudojets &, const mypseudojets&, 
+					 vector<Pythia8::Particle> & nu, vector<Pythia8::Particle> & mu, vector<Pythia8::Particle> & els );
+  
+
+
+
+  int BestCombination(const mypseudojets &, fastjet::PseudoJet & );
+  double Returnhadronicw();
+  double Returnleptonicw();
+  double Returnbestbtop();
+  double Returnlastbtop();
+  fastjet::PseudoJet LeptonicW(myparticlejets & , myparticlejets & , myparticlejets & );
   Pythia8::Vec4 Summation(myparticlejets &);
-  vector<Pythia8::Vec4> Changetype(const mypseudojets & );
+
+  void Clear();
+  Pythia8::Vec4 ConvertToVec4(const fastjet::PseudoJet& );
+  vector<Pythia8::Vec4> ConvertToVec4(const mypseudojets &  );
+  void ClearJets();
+ 
+  
  private:
   mypseudojets m_tops, m_bjets, m_lightjets, m_extra, m_tbars;
-  double m_mass, m_massW;
+  myparticlejets m_muons, m_electrons, m_nutrinos;
+  double m_mass, m_masswlep, m_masswhad, m_massbestb, m_lastbtop;
+  
+  void fatal(TString msg) { printf("ERROR:\n\n  %s\n\n",msg.Data()); abort(); }
   
 };
 

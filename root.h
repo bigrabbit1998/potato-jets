@@ -40,4 +40,10 @@
 #include <string>
 #include <vector>
 
+#include "TROOT.h"
+#include "TGraphErrors.h"
+#include "TLegend.h"
+#include "TComplex.h"
+#include "TMinuit.h"
+
 #endif

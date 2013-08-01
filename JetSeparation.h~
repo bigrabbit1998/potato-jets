@@ -1,0 +1,60 @@
+#ifndef JETS__HH
+#define JETS__HH 1
+
+#include "TLorentzVector.h"
+#include "fjClustering.h"
+#include "MyEvent.h"
+
+
+
+class Jets{
+
+ public:
+  
+  typedef vector<fastjet::PseudoJet> Pseudojets;
+  typedef vector<Pythia8::Particle> Particlejets;
+  
+  Jets();
+  
+  
+  /*Jets(void);
+  Jets(const Jets &src);
+  void operator=(const Jets &src);
+  */
+
+  // Takes jets and particles as input,
+  // and returns jets that do not overlap with particles
+
+  // jets OverlapRemoval(const Particles &ptcl, const jets &input_jet);
+  Pseudojets OverlapRemoval(const  Particlejets&,const Pseudojets&);
+  /* Jets OverlapRemoval(const Jets &input_jets, const Pythia8:: Particles &ptcls) {
+    Jets myjets=input_jets;
+    for (size_t i=0;i<ptcls.size();++i) {
+      myjets=OverlapRemoval(myjets,ptcls[i]);
+    }
+    return myjets;
+    }*/
+  
+ 
+  //matching is done here
+  void SetParam( double,double,double);
+  Pseudojets MatchPartonsToJets(const Particlejets&,const Pseudojets&);
+  // void MatchJetsToPartons( const Particlejets&, const Pseudojets&);
+  //  Pseudojets GhostMatching(const Particlejets&, const Pseudojets&);
+  bool ComparePt(fastjet::PseudoJet, fastjet::PseudoJet );
+  bool ChiSquare(TLorentzVector, TLorentzVector );
+ 
+  //this is possibly not needed
+  void PrintMatches();
+  Pseudojets RemoveSubset( Pseudojets &, Pseudojets& );
+
+  // deltaeta between top and tbar
+
+ private:
+  
+  double m_DeltaR, m_ptmin, m_etamax;
+  
+  
+};
+
+#endif

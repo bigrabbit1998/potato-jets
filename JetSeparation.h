@@ -20,7 +20,9 @@ class JetMatching{
   void operator=(const Jets &src);
   */
 
-  
+  //jet selection cuts
+  Pseudojets TrimJets(double, double, Pseudojets&);
+
   Pseudojets OverlapRemoval(const  Particlejets&,const Pseudojets&);
   /* Jets OverlapRemoval(const Jets &input_jets, const Pythia8:: Particles &ptcls) {
     Jets myjets=input_jets;
@@ -35,7 +37,6 @@ class JetMatching{
   Pseudojets Match(const Particlejets&,const Pseudojets&);
   bool ComparePt(fastjet::PseudoJet, fastjet::PseudoJet );
   bool ChiSquare(TLorentzVector, TLorentzVector );
-
   void PrintMatches();
   Pseudojets RemoveSubset(const Pseudojets &,const Pseudojets& );
 
@@ -43,6 +44,7 @@ class JetMatching{
  private:
   
   double m_DeltaR, m_ptmin, m_etamax;
+  
   
   
 };

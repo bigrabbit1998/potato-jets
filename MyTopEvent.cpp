@@ -1,6 +1,7 @@
 #include "fjClustering.h"
 #include "MyEvent.h"
 #include "MyTopEvent.h"
+#include "JetSeparation.h"
 //#include "PartonTop.h"
 
 //constructor 
@@ -8,13 +9,26 @@ MyTopEvent::MyTopEvent(){
   cout<<"Default constructor called"<<endl;
 }
 
+
 void MyTopEvent::ClearJets() {
-  /* m_tops.clear();
-  m_tbars.clear();
-  m_bjets.clear();
-  m_lightjets.clear();
-  m_extra.clear();  */
+  
+  m_nutrinos.clear();
+  m_muons.clear();
+  m_electrons.clear();  
 }
+
+
+double MyTopEvent::TopMatch( vector< Pythia8::Particle> & in_particle, fastjet::PseudoJet &in_pseudotop){
+  double DR(0);
+  for(size_t n(0) ; n < in_particle.size() ; ++ n ) {
+    DR = sqrt( (in_pseudotop.eta() - in_particle[n].eta() )*(in_pseudotop.eta() - in_particle[n].eta() ) + 
+		      (in_pseudotop.phi() - in_particle[n].phi() )*(in_pseudotop.phi() - in_particle[n].phi() ) );
+  }
+      
+  return DR;
+
+}
+
 
 /*
 bool MYTopEvent:: AllHadronic( ) {
@@ -32,81 +46,166 @@ bool MyTopEvent::SemiLeptonic() {
 
 */
 
-double MyTopEvent::Recon_Mass1(const mypseudojets & Bjets, const mypseudojets &Lightjets, Pythia8::Vec4 & rest, Pythia8::Particle& nutrin ){
-  double rmass(0),mass(0);
-  int bestcombo(0);
 
-  if(Lightjets.size() < 2 || Bjets.size()!=2) return -1.0;
+// leptonic pseudo top from leptonic 
+fastjet::PseudoJet MyTopEvent::Recon_Mass_Method_1(const mypseudojets & Bjets, const mypseudojets &Lightjets,
+						   vector<Pythia8::Particle> & nu, vector<Pythia8::Particle> & mu, vector<Pythia8::Particle> & els ){
+  fastjet::PseudoJet errorjet(0,0,0,0);
+  if(Lightjets.size() < 2 || Bjets.size() < 2) return errorjet ;
 
-  fastjet::PseudoJet besttwolightjets(0,0,0,0);
-  for(size_t k(0); k < 2; ++k){
-    besttwolightjets +=(Lightjets[k]);
-  }
+  //hadronic w by two highest pt non-bjets
+  fastjet::PseudoJet hadronicw =operator+(Lightjets[1],Lightjets[0]);
 
-  vector<Pythia8::Vec4> lightjetsvec4 = Changetype( Lightjets);
-  Pythia8::Vec4 hadronicw = operator+(lightjetsvec4[0],lightjetsvec4[1]);
+  //find the best hadronic w and b jet pair
+  int bestb = BestCombination(Bjets, hadronicw);
 
-  // m_massW = hadronicw.mCalc();
-  m_massW = besttwolightjets.m();
-
-  bestcombo= BestCombination(Bjets, hadronicw);
-  vector<fastjet::PseudoJet> remainingjets;
+  vector<fastjet::PseudoJet> remainingbjet;
   for(size_t k(0); k < Bjets.size(); ++k)
-    if(k != bestcombo)
-      remainingjets.push_back(Bjets[k]);
+    if(k != bestb)
+      remainingbjet.push_back(Bjets[k]);
 
+
+  fastjet::PseudoJet hadronictop= operator+(Bjets[bestb],hadronicw);
+
+  //make call to create leptonic W
+  fastjet::PseudoJet leptonicVV = LeptonicW(nu, mu, els);
+
+  //create leptonic pseudow
+  fastjet::PseudoJet lighttop = operator+(remainingbjet[0], leptonicVV);
+  fastjet::PseudoJet bestb_top = operator+(Bjets[bestb], leptonicVV);
   
-  vector<Pythia8::Vec4> lastb= Changetype(remainingjets);
-
-  Pythia8::Vec4 nuuuu(nutrin.px(), nutrin.py(), nutrin.pz(), nutrin.e());
-  Pythia8::Vec4 pseudotopm = operator+(lastb[0], rest);
-  // pseudotopm=operator+(pseudotopm,nuuuu);
-
-  // remainingjet[0]+=(leptonicw);
-
-  rmass = pseudotopm.mCalc();
-  //  rmass=besttwolightjets.m();
-  return rmass;
-}
-
-vector<Pythia8::Vec4> MyTopEvent::Changetype(const mypseudojets & changetype ){
-  vector<Pythia8::Vec4> returnjets;
-  for(size_t n(0); n < changetype.size(); ++n){
-    double px= changetype[n].px();
-    double py= changetype[n].py();
-    double pz= changetype[n].pz();
-    double E= changetype[n].e();
-    Pythia8::Vec4 t(px,py,pz,E);
-    returnjets.push_back(t);
-  }
-  return returnjets;
+  m_massbestb = bestb_top.m();
+  m_masswlep = leptonicVV.m();
+  m_masswhad =hadronicw.m();
+  m_lastbtop = hadronictop.m();
+  // return heavytop;
+  return lighttop;
 }
 
 
-double MyTopEvent::ReturnWmass(){
-  return m_massW;
+//method two for reconstructing the pseudotop
+fastjet::PseudoJet MyTopEvent::Recon_Mass_Method_2(const mypseudojets &, const mypseudojets&, 
+				       vector<Pythia8::Particle> & nu, vector<Pythia8::Particle> & mu, vector<Pythia8::Particle> & els )
+{
+  
+  
 }
 
-//solve for pz after assuming w mass
-Pythia8::Vec4 MyTopEvent::LeptonicW(vector<Pythia8::Particle> &nutrinos, vector<Pythia8::Particle> & tau, 
-			     vector<Pythia8::Particle> &muon, vector<Pythia8::Particle> &elec ) {
-  Pythia8::Vec4 leptonW( 0, 0,0,0); 
-  Pythia8::Vec4 nu, tu, mu, el, total;
-  tu = Summation(tau);
+
+double MyTopEvent::Returnhadronicw(){ return m_masswhad; }
+double MyTopEvent::Returnleptonicw() {return m_masswlep;}
+double MyTopEvent::Returnbestbtop(){ return m_massbestb; }
+double MyTopEvent::Returnlastbtop() { return m_lastbtop;}
+
+// Given one lepton and one neutrino
+//  solve for pz of the neutrino by assuming e+nu make the W mass
+//  return 4-vector of W for the solution with smaller nu |pz|
+fastjet::PseudoJet MyTopEvent::LeptonicW(vector<Pythia8::Particle> & nutrino, vector<Pythia8::Particle> & muon, vector< Pythia8::Particle> &electron) {
+  
+  // make sure input makes sense
+  if (muon.size()+electron.size()!=1) 
+    fatal(Form("There must only be one lepton! You are giving me %d electrons and %d muons.",
+	       electron.size(),muon.size()));
+
+
+  Pythia8::Vec4 met, mu, el, lepton;
+  // let's make the MET as a sum of all nu:s
+  met = Summation(nutrino);
+  // fastjet::PseudoJet nu_sum(0,0,0,0);
+  // for (size_t i=0;i < nutrino.size();++i) 
+  //      nu_sum = operator+(nu_sum, nutrino[i]);
+
+  // let's make the MET as a sum of all nu:s
+  // Pythia8::Vec4 nu_sum4vec;
+  //for (size_t i=0;i< nutrino.size();++i) 
+  //nu_sum4vec += Pythia8::MakeVec(nutrino[i]);
+  
   mu = Summation(muon);
-  el = Summation(elec);
+  el = Summation(electron);
+  lepton = operator+(mu,el);
+  double MET_phi = met.phi();
+  double MET_et = met.eta();
+  double M_W=80.3999;
+  double M_W2 = M_W*M_W;
  
-  total = operator+(mu,el);
-  // total=operator+(total,tau);
-  // double pwE = 
-  
-    double pwx = total.px() + nu.px(); // nupx = MET_x
-  double pwy = total.py() + nu.py();//nupy = MET_y
- 
-  double pwz = fabs((pwE^2 - pwx^2 - pwy^2 - (80.4)^2)^(1/2));
+  vector<TLorentzVector> ret; //try an array of vector or arrays
+  double nu_x = MET_et*cos(MET_phi),
+    nu_y = MET_et*sin(MET_phi),
+    M = .5*(M_W2-pow(lepton.mCalc(),2)),
+    lTnuT = (nu_x*lepton.px() + nu_y*lepton.py()),
+    A = pow(lepton.e(),2) - pow(lepton.pz(),2),
+    B = 2 * lepton.pz() * (M + lTnuT),
+    C = pow(MET_et,2) * pow(lepton.e(),2) - pow(M,2) - pow(lTnuT,2) - 2*M*lTnuT,
+    discr = B*B - 4*A*C;
+  if (discr > 0.) {
+    double rtDiscr = sqrt(discr);
+    double pz1 = (B+rtDiscr)/(2*A),
+      pz2 = (B-rtDiscr)/(2*A),
+      e1 = sqrt(nu_x*nu_x+nu_y*nu_y+pz1*pz1),
+      e2 = sqrt(nu_x*nu_x+nu_y*nu_y+pz2*pz2);
+    ret.push_back(TLorentzVector(nu_x,nu_y,pz1,e1));
+    ret.push_back(TLorentzVector(nu_x,nu_y,pz2,e2));
+  } else {
+    double pz = B/(2*A),
+      e = sqrt(nu_x*nu_x+nu_y*nu_y+pz*pz);
+    ret.push_back(TLorentzVector(nu_x,nu_y,pz,e));
+  }
 
+
+  double maxpz(0);
+  for(size_t i(0); i < ret.size(); ++i) {
+    double 
+      n_x = ret[i].Px(),
+      n_y = ret[i].Py(),
+      n_z = ret[i].Pz(),
+      n_e = ret[i].E();
+      
+    if(fabs( n_z ) > maxpz) 
+      maxpz = n_z;  
+  }
+
+  double E = sqrt(nu_x*nu_x+nu_y*nu_y+maxpz*maxpz);
+
+  double 
+    pwx = lepton.px() + nu_x,
+    pwy = lepton.py() + nu_y,
+    pwz = lepton.pz() + maxpz,
+    pwE = lepton.e() + E;
+
+  //  double pE = sqrt( pwx*pwx + pwy*pwy + pwz*pwz); 
+  /* 
+  double A = ( met.px()* met.px() + met.py()* met.py() );
+  double C = total.pz();
+  double D = total.e(); 
+  double gamma = ( A + D*D  - pwx*pwx - pwy*pwy - mw*mw - C*C)/2.0;
+  double pz = ( gamma* D - sqrt( A*(C*D) - A*D*D*D*D + gamma*gamma*D*D) ) / ( C*C - D*D) ;
+  */ 
+ 
+  //use larger value in the sum of the z components
+  // double pwz = (fabs( total.pz() + pz) >  fabs( total.pz() - pz ) ) ? (total.pz() + pz) : (total.pz() - pz) ;
   
-  return leptonW;
+  
+  //double pwE = sqrt( mw*mw + pwz*pwx + pwy*pwy + pwz*pwz ) ;
+ 
+  fastjet::PseudoJet leptonic(pwx,pwy,pwz,pwE);
+  
+  return leptonic;
+
+}
+
+// convert psuedojet to Pythia Vec4
+Pythia8::Vec4 MyTopEvent::ConvertToVec4(const fastjet::PseudoJet& pj ){
+  double px= pj.px(), py=pj.py(), pz=pj.pz(), E=pj.e();
+  return Pythia8::Vec4(px,py,pz,E);
+}
+
+//moves from psedojets to 4 vectors
+vector<Pythia8::Vec4> MyTopEvent::ConvertToVec4(const mypseudojets & changetype ){
+  vector<Pythia8::Vec4> returnjets;
+  for(size_t n(0); n < changetype.size(); ++n)
+    returnjets.push_back(ConvertToVec4(changetype[n]));
+
+  return returnjets;
 }
 
 Pythia8::Vec4 MyTopEvent::Summation(myparticlejets &temporary){
@@ -124,11 +223,13 @@ Pythia8::Vec4 MyTopEvent::Summation(myparticlejets &temporary){
   return sendback;
 }
 
+
+
 //returns position of best top-w pair
-int MyTopEvent::BestCombination(const mypseudojets & btaggedjets, /* vector<Pythia8::Vec4> &w*/ Pythia8::Vec4 &in ){
+int MyTopEvent::BestCombination(const mypseudojets & btaggedjets, /* vector<Pythia8::Vec4> &w*/ fastjet::PseudoJet &in ){
   mypseudojets bestbjets;
   
-  double tpmass(100);
+  double tpmass(99999);
   double tempdif(0);
   int bpos(0);
   double m_topmass=172.5;
@@ -137,19 +238,9 @@ int MyTopEvent::BestCombination(const mypseudojets & btaggedjets, /* vector<Pyth
   //i.e. the two highest pt jets
   for(size_t a(0) ; a < btaggedjets.size() ; ++a){
     const fastjet::PseudoJet &bf = btaggedjets[a];
-    double x=bf.px();
-    double y=bf.py();
-    double z=bf.pz();
-    double E=bf.e();
-    Pythia8::Vec4 temc(x,y,z,E);
     
-    /* for(size_t v(0); v < w.size(); ++v) {
-       const Pythia8::Vec4 &wjj = w[v];
-       Pythia8::Vec4 tem(wj.px(),wj.py(), wj.pz(), wj.e());*/
-    
-    Pythia8:: Vec4 final=operator+( temc,in);
-    //tempdif=fabs(m_topmass - final.mCalc());
-    tempdif=fabs(m_topmass - final.mCalc());
+    fastjet::PseudoJet final = operator+(bf,in);
+    tempdif=fabs(m_topmass - final.m());
     
     if(tempdif < tpmass){
       tpmass=tempdif;
@@ -157,8 +248,5 @@ int MyTopEvent::BestCombination(const mypseudojets & btaggedjets, /* vector<Pyth
     } 
   }
   
-  // matchedjets.push_back(w[wpos]);
-  //returns best bjet followed by best w 
-  // return btaggedjets[int(bpos)];
   return bpos;
 }
